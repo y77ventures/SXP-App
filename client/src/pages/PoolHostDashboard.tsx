@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Link } from 'wouter';
 import { Home, MapPin, Building2, Shield, CheckCircle, Plus, Waves } from 'lucide-react';
+import { z } from 'zod';
 
 const POOL_TYPES = [
   { label: 'Condominium Pool', value: 'condominium' },
@@ -20,28 +21,70 @@ const POOL_TYPES = [
 ];
 const SECURITY_TYPES = ['Lobby Pass Required', 'Visitor Registration', 'Access Card', 'Intercom Entry', 'No Security Required'];
 
+const poolSchema = z.object({
+  estateName: z.string().min(3, "Name must be at least 3 characters"),
+  poolType: z.enum(['condominium', 'landed_estate', 'other', '']),
+  fullAddress: z.string().min(10, "Please provide a full address"),
+  postalCode: z.string().regex(/^\d{6}$/, "Postal code must be exactly 6 digits"),
+  unitNumber: z.string().optional(),
+  poolLength: z.string().regex(/^\d+$/, "Length must be a number").transform(v => parseInt(v)).optional(),
+  poolDepth: z.string().optional(),
+  securityGuidelines: z.string().optional(),
+  accessInstructions: z.string().optional(),
+});
+
 export default function PoolHostDashboard() {
   const { user } = useAuth();
   const { data: pools, refetch } = trpc.poolHost.myPools.useQuery();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     estateName: '', poolType: '' as 'condominium' | 'landed_estate' | 'other', fullAddress: '', postalCode: '',
-    unitNumber: '', poolLength: 0, poolDepth: '',
+    unitNumber: '', poolLength: '', poolDepth: '',
     securityGuidelines: '', accessInstructions: '',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const registerPool = trpc.poolHost.registerPool.useMutation({
     onSuccess: () => {
       toast.success('Pool registered successfully');
       setShowForm(false);
-      setForm({ estateName: '', poolType: '' as 'condominium' | 'landed_estate' | 'other', fullAddress: '', postalCode: '', unitNumber: '', poolLength: 0, poolDepth: '', securityGuidelines: '', accessInstructions: '' });
+      setForm({ estateName: '', poolType: '' as 'condominium' | 'landed_estate' | 'other', fullAddress: '', postalCode: '', unitNumber: '', poolLength: '', poolDepth: '', securityGuidelines: '', accessInstructions: '' });
       refetch();
     },
     onError: (e) => toast.error(e.message),
   });
 
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(prev => ({ ...prev, [k]: e.target.value }));
+  const validate = () => {
+    try {
+      poolSchema.parse(form);
+      setErrors({});
+      return true;
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        err.errors.forEach(e => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
+  const handleRegister = () => {
+    if (validate()) {
+      registerPool.mutate({
+        ...form,
+        poolLength: parseInt(form.poolLength) || 0,
+        poolType: form.poolType as any
+      });
+    } else {
+      toast.error("Please fix the validation errors");
+    }
+  };
+
+  const set = (k: keyof typeof form, v: any) => {
+    setForm(prev => ({ ...prev, [k]: v }));
+    if (errors[k]) setErrors(prev => { const n = { ...prev }; delete n[k]; return n; });
+  };
 
   return (
     <div className="min-h-screen bg-[oklch(0.97_0.005_220)]">
@@ -59,20 +102,18 @@ export default function PoolHostDashboard() {
       </div>
 
       <div className="px-4 py-5 space-y-4">
-        {/* Notice */}
         <Card className="border-0 shadow-sm bg-amber-50 border-l-4 border-l-amber-400">
           <CardContent className="p-4 flex gap-3">
             <Shield size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-amber-800">Private Facilities Only</p>
               <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                SwimXP Connect does not list public pools. Please register your condominium, landed estate, or private club pool details below. All entries are verified before going live.
+                SwimXP Connect does not list public pools. Please register your condominium, landed estate, or private club pool details below.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Registered Pools */}
         {pools?.map((pool) => (
           <Card key={pool.id} className="border-0 shadow-sm">
             <CardContent className="p-4">
@@ -87,33 +128,22 @@ export default function PoolHostDashboard() {
                       <MapPin size={10} className="text-muted-foreground" />
                       <p className="text-xs text-muted-foreground">{pool.fullAddress}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Postal: {pool.postalCode}</p>
                   </div>
                 </div>
-                <Badge className={pool.mcstApproved
-                  ? 'bg-emerald-100 text-emerald-700 border-0 text-xs'
-                  : 'bg-amber-100 text-amber-700 border-0 text-xs'}>
+                <Badge className={pool.mcstApproved ? 'bg-emerald-100 text-emerald-700 border-0 text-xs' : 'bg-amber-100 text-amber-700 border-0 text-xs'}>
                   {pool.mcstApproved ? <><CheckCircle size={10} className="inline mr-1" />Verified</> : 'Pending'}
                 </Badge>
               </div>
-              {pool.securityGuidelines && (
-                <div className="mt-3 p-2 bg-[oklch(0.97_0.005_220)] rounded-lg">
-                  <p className="text-xs text-muted-foreground"><Shield size={10} className="inline mr-1" />Security: {pool.securityGuidelines}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         ))}
 
-        {/* Add Pool Button */}
         {!showForm && (
-          <Button className="w-full bg-[oklch(0.55_0.14_200)] hover:bg-[oklch(0.45_0.14_200)] text-white gap-2"
-            onClick={() => setShowForm(true)}>
+          <Button className="w-full bg-[oklch(0.55_0.14_200)] hover:bg-[oklch(0.45_0.14_200)] text-white gap-2" onClick={() => setShowForm(true)}>
             <Plus size={16} /> Register New Pool
           </Button>
         )}
 
-        {/* Registration Form */}
         {showForm && (
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
@@ -122,67 +152,39 @@ export default function PoolHostDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">Pool / Facility Name *</Label>
-                <Input className="mt-1 h-9 text-sm" placeholder="e.g. Rivervale Condo Pool" onChange={f('estateName')} />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Facility Type *</Label>
-                <Select onValueChange={(v) => setForm(p => ({ ...p, poolType: v as 'condominium' | 'landed_estate' | 'other' }))}>
+              <FormField label="Condominium / Estate Name *" error={errors.estateName}>
+                <Input type="text" placeholder="e.g. The Rivervale" value={form.estateName} onChange={e => set('estateName', e.target.value)} />
+              </FormField>
+              <FormField label="Facility Type *" error={errors.poolType}>
+                <Select onValueChange={(v) => set('poolType', v)}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     {POOL_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Condominium / Estate Name *</Label>
-                <Input className="mt-1 h-9 text-sm" placeholder="e.g. The Rivervale" onChange={f('estateName')} />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Full Property Address *</Label>
-                <Input className="mt-1 h-9 text-sm" placeholder="Block 12, Rivervale Drive, #01-01" onChange={f('fullAddress')} />
+              </FormField>
+              <FormField label="Full Property Address *" error={errors.fullAddress}>
+                <Input type="text" placeholder="e.g. Block 12, Rivervale Drive, #01-01" value={form.fullAddress} onChange={e => set('fullAddress', e.target.value)} />
+              </FormField>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Postal Code *" error={errors.postalCode}>
+                  <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 543210" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} maxLength={6} />
+                </FormField>
+                <FormField label="Unit Number">
+                  <Input type="text" placeholder="e.g. #12-34" value={form.unitNumber} onChange={e => set('unitNumber', e.target.value)} />
+                </FormField>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Postal Code *</Label>
-                  <Input className="mt-1 h-9 text-sm" placeholder="543210" maxLength={6} onChange={f('postalCode')} />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Unit Number</Label>
-                  <Input className="mt-1 h-9 text-sm" placeholder="#12-34" onChange={f('unitNumber')} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Pool Length (m)</Label>
-                  <Input className="mt-1 h-9 text-sm" type="number" placeholder="25" onChange={f('poolLength')} />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Max Depth (m)</Label>
-                  <Input className="mt-1 h-9 text-sm" type="number" placeholder="1.5" onChange={f('poolDepth')} />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Security / Entry Requirements *</Label>
-                <Select onValueChange={(v) => setForm(p => ({ ...p, securityType: v }))}>
-                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select entry type" /></SelectTrigger>
-                  <SelectContent>
-                    {SECURITY_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Security Entry Instructions</Label>
-                <Textarea className="mt-1 text-sm resize-none" rows={3}
-                  placeholder="e.g. Coach must register at lobby reception. Bring NRIC. Pool access via Level 2 lift lobby."
-                  onChange={f('securityGuidelines')} />
+                <FormField label="Pool Length (m)">
+                  <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 25" value={form.poolLength} onChange={e => set('poolLength', e.target.value.replace(/\D/g, ''))} />
+                </FormField>
+                <FormField label="Max Depth (m)">
+                  <Input type="text" placeholder="e.g. 1.5" value={form.poolDepth} onChange={e => set('poolDepth', e.target.value)} />
+                </FormField>
               </div>
               <div className="flex gap-3 pt-1">
                 <Button variant="outline" className="flex-1 text-sm" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button className="flex-1 bg-[oklch(0.55_0.14_200)] hover:bg-[oklch(0.45_0.14_200)] text-white text-sm"
-                  onClick={() => registerPool.mutate(form)}
-                  disabled={registerPool.isPending || !form.estateName || !form.fullAddress || !form.postalCode}>
+                <Button className="flex-1 bg-[oklch(0.55_0.14_200)] hover:bg-[oklch(0.45_0.14_200)] text-white text-sm" onClick={handleRegister} disabled={registerPool.isPending}>
                   {registerPool.isPending ? 'Registering…' : 'Register Pool'}
                 </Button>
               </div>
@@ -190,6 +192,16 @@ export default function PoolHostDashboard() {
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+function FormField({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+      {error && <p className="text-[10px] text-destructive font-medium">{error}</p>}
     </div>
   );
 }
