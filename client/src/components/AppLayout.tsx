@@ -14,12 +14,21 @@ const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/explore', icon: Search, label: 'Explore' },
   { path: '/matches', icon: Heart, label: 'Matches' },
-  { path: '/schedule', icon: CalendarDays, label: 'Schedule' },
+  { path: '/schedule', icon: CalendarDays, label: 'Schedule', authRequired: true },
   { path: '/profile', icon: User, label: 'Profile' },
 ];
 
 export default function AppLayout({ children, hideNav = false }: AppLayoutProps) {
+  const { isAuthenticated, user } = useAuth();
   const [location] = useLocation();
+
+  const filteredNavItems = navItems.filter(item => {
+    if (item.authRequired && !isAuthenticated) return false;
+    // Hide schedule from students if preferred, but usually students also have a schedule.
+    // However, the prompt says "Hide Schedule and Dashboard from students and public users"
+    if (item.path === '/schedule' && user?.role === 'client') return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-background max-w-md mx-auto relative">
@@ -36,7 +45,7 @@ export default function AppLayout({ children, hideNav = false }: AppLayoutProps)
             style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.08)' }}
           >
             <div className="flex items-center justify-around px-2 py-2">
-              {navItems.map(({ path, icon: Icon, label }) => {
+              {filteredNavItems.map(({ path, icon: Icon, label }) => {
                 const isActive = path === '/'
                   ? location === '/'
                   : location.startsWith(path);

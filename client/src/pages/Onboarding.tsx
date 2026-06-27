@@ -2,10 +2,11 @@
 // Design: Aqua Clarity — step progress, animated transitions, waiver modal
 // Private-property-only: Condo Pool / Landed Estate only. No public ActiveSG pools.
 // Swimmer profile: flexible — register yourself (Adult) or a child/teen.
+// Updated: Migrated full questionnaire and waiver from draft 1, kept modern styling and database wiring.
 
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ChevronLeft, CheckCircle2, AlertTriangle, User, Users } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, User, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +20,8 @@ import { z } from 'zod';
 const LOGO_IMG = '/swimxp-logo-v3.png';
 
 const SWIM_LEVELS = ['Non-swimmer', 'Beginner', 'Intermediate', 'Advanced', 'Competitive'];
-const LANGUAGES = ['English', 'Mandarin', 'Malay', 'Tamil', 'Hindi', 'Korean', 'Filipino'];
+const SWIM_GOALS = ['Water Confidence', 'Learn Freestyle', 'Stroke Correction', 'Competitive Swimming', 'Adult Beginner', 'Water Safety'];
+const LANGUAGES = ['English', 'Mandarin', 'Malay', 'Tamil', 'Korean', 'Japanese'];
 const SCHEDULE_PREFS = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekend Mornings', 'Weekend Afternoons'];
 const REGIONS = ['Central', 'North', 'North-East', 'East', 'West'];
 
@@ -30,9 +32,8 @@ const STEPS = [
   { title: 'Welcome', subtitle: "Let's find your perfect coach" },
   { title: 'Your Details', subtitle: 'Tell us about yourself' },
   { title: 'Swimmer Profile', subtitle: 'Who are we coaching?' },
-  { title: 'Lesson Location', subtitle: 'Your private pool details' },
   { title: 'Preferences', subtitle: 'What matters most to you?' },
-  { title: 'Waiver', subtitle: 'Almost done!' },
+  { title: 'Waiver', subtitle: 'Safety first!' },
 ];
 
 // Validation Schema
@@ -40,20 +41,10 @@ const onboardingSchema = z.object({
   parentName: z.string().min(3, "Name must be at least 3 characters").regex(/^[a-zA-Z\s\-]+$/, "Name can only contain letters, spaces, and hyphens"),
   email: z.string().email("Invalid email address"),
   phone: z.string().regex(/^\d{8,15}$/, "Phone must be 8-15 digits"),
-  nric: z.string().regex(/^\d{3}[A-Z]$/i, "NRIC must be 3 digits followed by a letter (e.g., 123A)"),
-  emergencyName: z.string().min(3, "Name must be at least 3 characters").regex(/^[a-zA-Z\s\-]+$/, "Name can only contain letters, spaces, and hyphens"),
-  emergencyPhone: z.string().regex(/^\d{8,15}$/, "Phone must be 8-15 digits"),
   swimmerName: z.string().min(3, "Name must be at least 3 characters").regex(/^[a-zA-Z\s\-]+$/, "Name can only contain letters, spaces, and hyphens"),
   swimmerAge: z.string().min(1, "Age is required"),
   swimLevel: z.string().min(1, "Level is required"),
   region: z.string().min(1, "Region is required"),
-  locationType: z.enum(['condo', 'landed', '']),
-  condoName: z.string().optional(),
-  condoPostal: z.string().optional(),
-  landedAddress: z.string().optional(),
-}).refine(data => data.phone !== data.emergencyPhone, {
-  message: "Emergency contact cannot be the same as primary phone",
-  path: ["emergencyPhone"]
 });
 
 export default function Onboarding() {
@@ -67,20 +58,12 @@ export default function Onboarding() {
     parentName: '',
     email: '',
     phone: '',
-    nric: '',
-    emergencyName: '',
-    emergencyPhone: '',
     swimmerName: '',
     swimmerAge: '',
     swimLevel: '',
     goals: [] as string[],
-    customGoal: '',
     language: '',
     region: '',
-    locationType: '' as 'condo' | 'landed' | '',
-    condoName: '',
-    condoPostal: '',
-    landedAddress: '',
     schedule: [] as string[],
   });
 
@@ -88,11 +71,9 @@ export default function Onboarding() {
 
   const setRoleMutation = trpc.auth.setPlatformRole.useMutation();
   const saveProfileMutation = trpc.clientProfile.saveProfile.useMutation();
-  const registerPoolMutation = trpc.poolHost.registerPool.useMutation();
 
   const set = (key: keyof typeof form, val: any) => {
     setForm(f => ({ ...f, [key]: val }));
-    // Clear error when user types
     if (errors[key]) {
       setErrors(prev => {
         const next = { ...prev };
@@ -102,19 +83,24 @@ export default function Onboarding() {
     }
   };
 
+  const toggleGoal = (g: string) => {
+    setForm(f => ({
+      ...f,
+      goals: f.goals.includes(g) ? f.goals.filter(x => x !== g) : [...f.goals, g],
+    }));
+  };
+
   const toggleSchedule = (s: string) =>
     setForm(f => ({ ...f, schedule: f.schedule.includes(s) ? f.schedule.filter(x => x !== s) : [...f.schedule, s] }));
 
   const validateStep = () => {
     try {
       if (step === 1) {
-        onboardingSchema.pick({ parentName: true, email: true, phone: true, nric: true, emergencyName: true, emergencyPhone: true }).parse(form);
+        onboardingSchema.pick({ parentName: true, email: true, phone: true }).parse(form);
       } else if (step === 2) {
         onboardingSchema.pick({ swimmerName: true, swimmerAge: true, swimLevel: true }).parse(form);
       } else if (step === 3) {
-        onboardingSchema.pick({ region: true, locationType: true }).parse(form);
-        if (form.locationType === 'condo' && (!form.condoName || !form.condoPostal)) throw new Error("Condo details required");
-        if (form.locationType === 'landed' && (!form.condoName || !form.landedAddress)) throw new Error("Landed details required");
+        onboardingSchema.pick({ region: true }).parse(form);
       }
       return true;
     } catch (err) {
@@ -128,7 +114,7 @@ export default function Onboarding() {
   };
 
   const handleNext = async () => {
-    if (step > 0 && !validateStep()) {
+    if (step > 0 && step < 4 && !validateStep()) {
       toast.error('Please fix the errors before continuing');
       return;
     }
@@ -142,24 +128,19 @@ export default function Onboarding() {
       }
       try {
         await setRoleMutation.mutateAsync({ role: 'client' });
-        let poolId: number | undefined;
-        if (form.locationType) {
-          const poolResult = await registerPoolMutation.mutateAsync({
-            poolType: form.locationType === 'condo' ? 'condominium' : 'landed_estate',
-            estateName: form.condoName,
-            fullAddress: form.locationType === 'condo' ? `${form.condoName}, Singapore ${form.condoPostal}` : form.landedAddress,
-            postalCode: form.condoPostal || '000000',
-            mcstApproved: true,
-          });
-          poolId = poolResult.id;
-        }
         await saveProfileMutation.mutateAsync({
           swimmerType: swimmerType === 'self' ? 'adult_self' : 'child',
           swimmerName: form.swimmerName,
           swimmerAge: parseInt(form.swimmerAge) || 0,
           swimLevel: form.swimLevel.toLowerCase().replace('-', '_') as any,
-          goals: JSON.stringify({ goals: form.goals, customGoal: form.customGoal, language: form.language, schedule: form.schedule, region: form.region }),
-          preferredPoolId: poolId,
+          goals: JSON.stringify({ 
+            goals: form.goals, 
+            language: form.language, 
+            schedule: form.schedule, 
+            region: form.region,
+            parentName: form.parentName,
+            phone: form.phone
+          }),
         });
         toast.success('Profile created! Finding your matches...', { icon: '🎉' });
         setTimeout(() => navigate('/matches'), 1200);
@@ -196,32 +177,38 @@ export default function Onboarding() {
 
       <div className="px-4 py-6 animate-fade-up">
         {step === 0 && (
-          <div className="text-center py-8">
-            <img src={LOGO_IMG} alt="SwimXP" className="h-32 w-auto object-contain mx-auto mb-5" />
-            <h2 className="text-2xl font-extrabold font-display text-navy mb-3">Welcome to SwimXP</h2>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">We match swimmers of all ages with certified private coaches.</p>
+          <div className="text-center py-4">
+            <img src={LOGO_IMG} alt="SwimXP" className="w-20 h-20 object-contain mx-auto mb-5" />
+            <h2 className="text-2xl font-extrabold font-display text-navy mb-3">Find Your Match</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+              We'll match you with the perfect swim coach in under 2 minutes. Answer a few quick questions to get started.
+            </p>
+            <div className="space-y-3 text-left mb-8">
+              {[
+                { emoji: '🎯', text: 'Personalised coach matching' },
+                { emoji: '📍', text: 'Coaches travel to your private pool' },
+                { emoji: '📅', text: 'Book lessons that fit your schedule' },
+                { emoji: '✅', text: 'Verified and certified coaches only' },
+              ].map(item => (
+                <div key={item.text} className="flex items-center gap-3 bg-[oklch(0.97_0.005_220)] rounded-xl p-3">
+                  <span className="text-xl">{item.emoji}</span>
+                  <span className="text-sm text-foreground font-medium">{item.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {step === 1 && (
           <div className="space-y-4">
-            <RequiredField label="Full Name (as per NRIC)" error={errors.parentName}>
-              <Input type="text" placeholder="e.g. John Tan Wei Jie" value={form.parentName} onChange={e => set('parentName', e.target.value)} />
+            <RequiredField label="Your Full Name" error={errors.parentName}>
+              <Input type="text" placeholder="e.g. Jennifer Lim" value={form.parentName} onChange={e => set('parentName', e.target.value)} />
             </RequiredField>
             <RequiredField label="Email Address" error={errors.email}>
-              <Input type="email" autocomplete="email" placeholder="e.g. john.tan@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
+              <Input type="email" autocomplete="email" placeholder="e.g. jennifer@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
             </RequiredField>
-            <RequiredField label="Mobile Number" error={errors.phone}>
+            <RequiredField label="Phone Number (WhatsApp)" error={errors.phone}>
               <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, ''))} />
-            </RequiredField>
-            <RequiredField label="NRIC / FIN (last 4 characters)" error={errors.nric}>
-              <Input type="text" placeholder="e.g. 567A" value={form.nric} onChange={e => set('nric', e.target.value.toUpperCase())} maxLength={4} />
-            </RequiredField>
-            <RequiredField label="Emergency Contact Name" error={errors.emergencyName}>
-              <Input type="text" placeholder="e.g. Mary Lim" value={form.emergencyName} onChange={e => set('emergencyName', e.target.value)} />
-            </RequiredField>
-            <RequiredField label="Emergency Contact Number" error={errors.emergencyPhone}>
-              <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 81234567" value={form.emergencyPhone} onChange={e => set('emergencyPhone', e.target.value.replace(/\D/g, ''))} />
             </RequiredField>
           </div>
         )}
@@ -238,7 +225,7 @@ export default function Onboarding() {
             </div>
             {swimmerType && (
               <div className="space-y-4">
-                <RequiredField label="Swimmer Name" error={errors.swimmerName}>
+                <RequiredField label="Swimmer's Name" error={errors.swimmerName}>
                   <Input type="text" placeholder="e.g. Tan Xiao Ming" value={form.swimmerName} onChange={e => set('swimmerName', e.target.value)} />
                 </RequiredField>
                 <RequiredField label="Age" error={errors.swimmerAge}>
@@ -260,45 +247,110 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <RequiredField label="Region" error={errors.region}>
               <select className="w-full p-2 rounded-md border text-sm" value={form.region} onChange={e => set('region', e.target.value)}>
                 <option value="">Select Region</option>
                 {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </RequiredField>
-            <RequiredField label="Location Type" error={errors.locationType}>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant={form.locationType === 'condo' ? 'default' : 'outline'} onClick={() => set('locationType', 'condo')}>Condo</Button>
-                <Button variant={form.locationType === 'landed' ? 'default' : 'outline'} onClick={() => set('locationType', 'landed')}>Landed</Button>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-navy">Swim Goals (select multiple)</Label>
+              <div className="flex flex-wrap gap-2">
+                {SWIM_GOALS.map(g => (
+                  <button
+                    key={g}
+                    onClick={() => toggleGoal(g)}
+                    className={cn(
+                      'text-xs px-3 py-1.5 rounded-full font-medium transition-all',
+                      form.goals.includes(g) ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground'
+                    )}
+                  >
+                    {g}
+                  </button>
+                ))}
               </div>
-            </RequiredField>
-            {form.locationType === 'condo' && (
-              <>
-                <RequiredField label="Condo Name">
-                  <Input type="text" placeholder="e.g. The Rivervale" value={form.condoName} onChange={e => set('condoName', e.target.value)} />
-                </RequiredField>
-                <RequiredField label="Postal Code">
-                  <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 543210" value={form.condoPostal} onChange={e => set('condoPostal', e.target.value.replace(/\D/g, ''))} maxLength={6} />
-                </RequiredField>
-              </>
-            )}
-            {form.locationType === 'landed' && (
-              <>
-                <RequiredField label="Estate Name">
-                  <Input type="text" placeholder="e.g. Serangoon Gardens" value={form.condoName} onChange={e => set('condoName', e.target.value)} />
-                </RequiredField>
-                <RequiredField label="Full Address">
-                  <Input type="text" placeholder="e.g. 123 Flower Road" value={form.landedAddress} onChange={e => set('landedAddress', e.target.value)} />
-                </RequiredField>
-              </>
-            )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-navy">Preferred Language</Label>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map(l => (
+                  <button
+                    key={l}
+                    onClick={() => set('language', l)}
+                    className={cn(
+                      'text-xs px-3 py-1.5 rounded-full font-medium transition-all',
+                      form.language === l ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground'
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-navy">Preferred Schedule</Label>
+              <div className="space-y-2">
+                {SCHEDULE_PREFS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => toggleSchedule(s)}
+                    className={cn(
+                      'w-full text-left px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-between',
+                      form.schedule.includes(s) ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-foreground'
+                    )}
+                  >
+                    {s}
+                    {form.schedule.includes(s) && <CheckCircle2 size={16} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-4">
+            <div className="bg-[oklch(0.97_0.005_220)] rounded-2xl p-4 max-h-72 overflow-y-auto border border-border/50">
+              <h3 className="font-bold text-sm font-display text-navy mb-3">SwimXP Connect — Liability Waiver & Terms</h3>
+              <div className="text-xs text-muted-foreground space-y-3 leading-relaxed">
+                <p>By registering on SwimXP Connect, you acknowledge and agree to the following:</p>
+                <p><strong>1. Risk Acknowledgement:</strong> Swimming involves inherent risks including but not limited to drowning, injury, and illness. You voluntarily assume all such risks for the swimmer.</p>
+                <p><strong>2. Marketplace Platform:</strong> SwimXP Connect is a marketplace platform. Coaches are independent contractors, not direct employees of SwimXP.</p>
+                <p><strong>3. Private Location:</strong> Lessons take place at your provided private residence (Condo/Landed). You are responsible for ensuring the pool is safe and accessible for the lesson.</p>
+                <p><strong>4. Supervision:</strong> A parent or guardian must be present on-site at the private residence during lessons for children under 16.</p>
+                <p><strong>5. Cancellation:</strong> Lessons cancelled less than 24 hours in advance may be subject to a full session fee at the coach's discretion.</p>
+                <p><strong>6. Data Privacy:</strong> Your data is protected under Singapore's PDPA and used only for matching and booking purposes.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setWaiverAccepted(!waiverAccepted)}
+              className={cn(
+                'w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left',
+                waiverAccepted ? 'border-[oklch(0.76_0.14_192)] bg-[oklch(0.95_0.04_192)]' : 'border-border bg-white'
+              )}
+            >
+              <div className={cn(
+                'w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all',
+                waiverAccepted ? 'bg-[oklch(0.76_0.14_192)] border-[oklch(0.76_0.14_192)] text-white' : 'border-border'
+              )}>
+                {waiverAccepted && <CheckCircle2 size={14} />}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-navy leading-none">I accept the terms & waiver</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Required to find your coach match</p>
+              </div>
+            </button>
           </div>
         )}
 
         <div className="mt-8">
-          <Button className="w-full" onClick={handleNext} disabled={setRoleMutation.isPending || saveProfileMutation.isPending}>
-            {step === STEPS.length - 1 ? (saveProfileMutation.isPending ? 'Saving...' : 'Complete Registration') : 'Continue'}
+          <Button
+            className="w-full h-12 bg-[oklch(0.72_0.13_200)] hover:bg-[oklch(0.62_0.13_200)] text-white rounded-2xl font-semibold shadow-lg"
+            onClick={handleNext}
+            disabled={setRoleMutation.isPending || saveProfileMutation.isPending}
+          >
+            {step === STEPS.length - 1 ? 'Get My Matches' : 'Continue'}
           </Button>
         </div>
       </div>
@@ -309,11 +361,9 @@ export default function Onboarding() {
 function RequiredField({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold text-navy flex items-center gap-1">
-        {label} <span className="text-destructive">*</span>
-      </Label>
+      <Label className="text-sm font-semibold text-navy">{label}</Label>
       {children}
-      {error && <p className="text-[10px] text-destructive font-medium">{error}</p>}
+      {error && <p className="text-[10px] text-red-500 font-medium">{error}</p>}
     </div>
   );
 }
