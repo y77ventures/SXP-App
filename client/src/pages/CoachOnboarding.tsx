@@ -62,7 +62,21 @@ export default function CoachOnboarding() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const setRoleMutation = trpc.auth.setPlatformRole.useMutation();
-  const saveCoachProfileMutation = trpc.coachProfile.saveProfile.useMutation();
+  const saveCoachProfileMutation = trpc.coach.saveProfile.useMutation();
+
+  // Map free-text cert selections to the backend-supported enum values
+  const mapPrimaryCert = (c: string): 'AUSTSWIM' | 'STA' | 'NROC' | 'International Equivalent' => {
+    if (c.startsWith('NROC')) return 'NROC';
+    if (c === 'AustSwim') return 'AUSTSWIM';
+    if (c === 'SSTA') return 'STA';
+    return 'International Equivalent';
+  };
+  const mapLifesavingCert = (c: string): 'Bronze Medallion' | 'CPR & AED' | 'First Aid' | 'Equivalent' => {
+    if (c === 'Bronze Medallion') return 'Bronze Medallion';
+    if (c === 'CPR/AED') return 'CPR & AED';
+    if (c === 'First Aid') return 'First Aid';
+    return 'Equivalent';
+  };
 
   const set = (key: keyof typeof form, val: any) => {
     setForm(f => ({ ...f, [key]: val }));
@@ -80,7 +94,7 @@ export default function CoachOnboarding() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        err.errors.forEach(e => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
+        err.issues.forEach((e: any) => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
         setErrors(newErrors);
       }
       return false;
@@ -104,13 +118,14 @@ export default function CoachOnboarding() {
         await setRoleMutation.mutateAsync({ role: 'coach' });
         await saveCoachProfileMutation.mutateAsync({
           bio: form.bio,
-          hourlyRate: Number(form.hourlyRate),
-          experience: Number(form.experience),
-          location: 'Central, Singapore',
-          specialities: ['Children', 'Adult Beginners'],
-          languages: ['English'],
-          certifications: [form.coachingCert, form.lifesavingCert].filter(Boolean),
-          availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          hourlyRate: String(form.hourlyRate),
+          yearsExperience: Number(form.experience),
+          languages: 'English',
+          catchmentRegions: 'Central, Singapore',
+          ...(form.coachingCert ? { primaryCert: mapPrimaryCert(form.coachingCert) } : {}),
+          ...(form.coachingExpiry ? { primaryCertExpiry: new Date(form.coachingExpiry) } : {}),
+          ...(form.lifesavingCert ? { lifesavingCert: mapLifesavingCert(form.lifesavingCert) } : {}),
+          ...(form.lifesavingExpiry ? { lifesavingCertExpiry: new Date(form.lifesavingExpiry) } : {}),
         });
         toast.success('Registration submitted! Reviewing credentials...', { icon: '🚀' });
         setTimeout(() => navigate('/dashboard'), 1500);
@@ -158,10 +173,10 @@ export default function CoachOnboarding() {
               <Input type="text" placeholder="e.g. John Tan Wei Jie" value={form.fullName} onChange={e => set('fullName', e.target.value)} />
             </RField>
             <RField label="Email Address" error={errors.email}>
-              <Input type="email" autocomplete="email" placeholder="e.g. john.tan@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
+              <Input type="email" autoComplete="email" placeholder="e.g. john.tan@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
             </RField>
             <RField label="Mobile Number" error={errors.phone}>
-              <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, ''))} />
+              <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, ''))} />
             </RField>
             <RField label="NRIC / FIN (last 4 characters)" error={errors.nric}>
               <Input type="text" placeholder="e.g. 567A" value={form.nric} onChange={e => set('nric', e.target.value.toUpperCase())} maxLength={4} />
@@ -174,12 +189,12 @@ export default function CoachOnboarding() {
             <RField label="Hourly Rate (SGD)" error={errors.hourlyRate}>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">$</span>
-                <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 85" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value.replace(/\D/g, ''))} className="pl-7" />
+                <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 85" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value.replace(/\D/g, ''))} className="pl-7" />
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">Minimum fee is $75/hr for private lessons.</p>
             </RField>
             <RField label="Years of Experience" error={errors.experience}>
-              <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 5" value={form.experience} onChange={e => set('experience', e.target.value.replace(/\D/g, ''))} />
+              <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 5" value={form.experience} onChange={e => set('experience', e.target.value.replace(/\D/g, ''))} />
             </RField>
             <RField label="Professional Bio" error={errors.bio}>
               <Textarea placeholder="Describe your coaching philosophy and experience..." className="min-h-[120px]" value={form.bio} onChange={e => set('bio', e.target.value)} />

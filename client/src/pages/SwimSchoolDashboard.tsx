@@ -62,7 +62,7 @@ export default function SwimSchoolDashboard() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        err.errors.forEach(e => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
+        err.issues.forEach((e: any) => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
         setErrors(newErrors);
       }
       return false;
@@ -112,11 +112,11 @@ export default function SwimSchoolDashboard() {
                 <FormField label="UEN (Business Registration) *" error={errors.uen}><Input type="text" placeholder="e.g. 202312345A" value={form.uen} onChange={e => set('uen', e.target.value.toUpperCase())} /></FormField>
                 <div className="grid grid-cols-2 gap-3">
                   <FormField label="Contact Email *" error={errors.contactEmail}><Input type="email" placeholder="e.g. admin@school.sg" value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} /></FormField>
-                  <FormField label="Phone *" error={errors.contactPhone}><Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.contactPhone} onChange={e => set('contactPhone', e.target.value.replace(/\D/g, ''))} /></FormField>
+                  <FormField label="Phone *" error={errors.contactPhone}><Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.contactPhone} onChange={e => set('contactPhone', e.target.value.replace(/\D/g, ''))} /></FormField>
                 </div>
                 <FormField label="School Address *" error={errors.address}><Input type="text" placeholder="e.g. Block 123, Street Name, #01-01" value={form.address} onChange={e => set('address', e.target.value)} /></FormField>
                 <div className="grid grid-cols-2 gap-3">
-                  <FormField label="Postal Code *" error={errors.postalCode}><Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 123456" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} maxLength={6} /></FormField>
+                  <FormField label="Postal Code *" error={errors.postalCode}><Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 123456" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} maxLength={6} /></FormField>
                   <FormField label="Brand Colour"><div className="flex items-center gap-2 mt-1"><input type="color" value={form.brandColor} className="w-9 h-9 rounded-lg border cursor-pointer" onChange={e => set('brandColor', e.target.value)} /><span className="text-xs text-muted-foreground">{form.brandColor}</span></div></FormField>
                 </div>
                 <Button className="w-full bg-[oklch(0.55_0.14_200)] hover:bg-[oklch(0.45_0.14_200)] text-white mt-2" onClick={handleSave} disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : 'Save School Profile'}</Button>

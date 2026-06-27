@@ -30,6 +30,9 @@ import SwimSchoolDashboard from './pages/SwimSchoolDashboard';
 import CoachDashboard from './pages/CoachDashboard';
 import PoolHostDashboard from './pages/PoolHostDashboard';
 import ClientDashboard from './pages/ClientDashboard';
+import Pricing from './pages/Pricing';
+import FAQ from './pages/FAQ';
+import AuthRedirect from './pages/AuthRedirect';
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -43,6 +46,10 @@ function Router() {
       <Route path="/pool/:id" component={PoolDetail} />
       <Route path="/book" component={Booking} />
       <Route path="/onboarding" component={Onboarding} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/faq" component={FAQ} />
+      <Route path="/login" component={AuthRedirect} />
+      <Route path="/register" component={AuthRedirect} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/wallet" component={Wallet} />

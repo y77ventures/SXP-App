@@ -1,12 +1,12 @@
-// Onboarding — Swimmer registration flow (All Ages: Children, Teens, Adults)
-// Design: Aqua Clarity — step progress, animated transitions, waiver modal
-// Private-property-only: Condo Pool / Landed Estate only. No public ActiveSG pools.
-// Swimmer profile: flexible — register yourself (Adult) or a child/teen.
-// Updated: Migrated full questionnaire and waiver from draft 1, kept modern styling and database wiring.
+// Onboarding — Student concierge questionnaire
+// Design: Aqua Clarity — step progress, animated transitions
+// Collects: Name, Email, Mobile, Postal Code, Lesson Location, Swimming Level, Goal, Preferred Days, Preferred Time
+// Lesson Location: Condo Pool / Landed Property Pool only (no public pools).
+// Closes with the Top 3 concierge recommendation promise.
 
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ChevronLeft, CheckCircle2, User, Users } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Building2, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,52 +19,46 @@ import { z } from 'zod';
 
 const LOGO_IMG = '/swimxp-logo-v3.png';
 
+const LESSON_LOCATIONS = [
+  { id: 'condo', label: 'Condo Pool', desc: 'Lessons at your condominium pool', icon: Building2 },
+  { id: 'landed', label: 'Landed Property Pool', desc: 'Lessons at your private landed estate pool', icon: HomeIcon },
+];
 const SWIM_LEVELS = ['Non-swimmer', 'Beginner', 'Intermediate', 'Advanced', 'Competitive'];
-const SWIM_GOALS = ['Water Confidence', 'Learn Freestyle', 'Stroke Correction', 'Competitive Swimming', 'Adult Beginner', 'Water Safety'];
-const LANGUAGES = ['English', 'Mandarin', 'Malay', 'Tamil', 'Korean', 'Japanese'];
-const SCHEDULE_PREFS = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekend Mornings', 'Weekend Afternoons'];
-const REGIONS = ['Central', 'North', 'North-East', 'East', 'West'];
-
-const CHILD_AGE_GROUPS = ['2–4 yrs', '5–7 yrs', '8–10 yrs', '11–13 yrs', '14–17 yrs'];
-const ADULT_AGE_GROUPS = ['18–25', '26–35', '36–45', '46–55', '56+'];
+const SWIM_GOALS = ['Water Confidence', 'Learn Freestyle', 'Stroke Correction', 'Competitive Training', 'Adult Beginner', 'Water Safety'];
+const PREFERRED_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const PREFERRED_TIMES = ['Morning', 'Afternoon', 'Evening'];
 
 const STEPS = [
   { title: 'Welcome', subtitle: "Let's find your perfect coach" },
-  { title: 'Your Details', subtitle: 'Tell us about yourself' },
-  { title: 'Swimmer Profile', subtitle: 'Who are we coaching?' },
-  { title: 'Preferences', subtitle: 'What matters most to you?' },
-  { title: 'Waiver', subtitle: 'Safety first!' },
+  { title: 'Your Details', subtitle: 'How we reach you' },
+  { title: 'Lesson Location', subtitle: 'Where you want to swim' },
+  { title: 'Swimming Profile', subtitle: 'Your level & goal' },
+  { title: 'Availability', subtitle: 'When works best' },
 ];
 
 // Validation Schema
 const onboardingSchema = z.object({
-  parentName: z.string().min(3, "Name must be at least 3 characters").regex(/^[a-zA-Z\s\-]+$/, "Name can only contain letters, spaces, and hyphens"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().regex(/^\d{8,15}$/, "Phone must be 8-15 digits"),
-  swimmerName: z.string().min(3, "Name must be at least 3 characters").regex(/^[a-zA-Z\s\-]+$/, "Name can only contain letters, spaces, and hyphens"),
-  swimmerAge: z.string().min(1, "Age is required"),
-  swimLevel: z.string().min(1, "Level is required"),
-  region: z.string().min(1, "Region is required"),
+  name: z.string().min(3, 'Name must be at least 3 characters').regex(/^[a-zA-Z\s\-]+$/, 'Name can only contain letters, spaces, and hyphens'),
+  email: z.string().email('Please enter a valid email address'),
+  mobile: z.string().regex(/^\d{8,15}$/, 'Mobile must be 8-15 digits'),
+  postalCode: z.string().regex(/^\d{6}$/, 'Singapore postal code must be 6 digits'),
 });
 
 export default function Onboarding() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [step, setStep] = useState(0);
-  const [waiverAccepted, setWaiverAccepted] = useState(false);
-  const [swimmerType, setSwimmerType] = useState<'self' | 'child' | ''>('');
 
   const [form, setForm] = useState({
-    parentName: '',
+    name: '',
     email: '',
-    phone: '',
-    swimmerName: '',
-    swimmerAge: '',
+    mobile: '',
+    postalCode: '',
+    lessonLocation: '',
     swimLevel: '',
-    goals: [] as string[],
-    language: '',
-    region: '',
-    schedule: [] as string[],
+    goal: '',
+    preferredDays: [] as string[],
+    preferredTime: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -74,39 +68,27 @@ export default function Onboarding() {
 
   const set = (key: keyof typeof form, val: any) => {
     setForm(f => ({ ...f, [key]: val }));
-    if (errors[key]) {
-      setErrors(prev => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
+    if (errors[key]) setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
-  const toggleGoal = (g: string) => {
-    setForm(f => ({
-      ...f,
-      goals: f.goals.includes(g) ? f.goals.filter(x => x !== g) : [...f.goals, g],
-    }));
-  };
-
-  const toggleSchedule = (s: string) =>
-    setForm(f => ({ ...f, schedule: f.schedule.includes(s) ? f.schedule.filter(x => x !== s) : [...f.schedule, s] }));
+  const toggleDay = (d: string) =>
+    setForm(f => ({ ...f, preferredDays: f.preferredDays.includes(d) ? f.preferredDays.filter(x => x !== d) : [...f.preferredDays, d] }));
 
   const validateStep = () => {
     try {
       if (step === 1) {
-        onboardingSchema.pick({ parentName: true, email: true, phone: true }).parse(form);
+        onboardingSchema.parse(form);
       } else if (step === 2) {
-        onboardingSchema.pick({ swimmerName: true, swimmerAge: true, swimLevel: true }).parse(form);
+        if (!form.lessonLocation) throw new z.ZodError([{ code: 'custom', path: ['lessonLocation'], message: 'Please select a lesson location' }]);
       } else if (step === 3) {
-        onboardingSchema.pick({ region: true }).parse(form);
+        if (!form.swimLevel) throw new z.ZodError([{ code: 'custom', path: ['swimLevel'], message: 'Please select a swimming level' }]);
+        if (!form.goal) throw new z.ZodError([{ code: 'custom', path: ['goal'], message: 'Please select a goal' }]);
       }
       return true;
     } catch (err) {
       if (err instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        err.errors.forEach(e => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
+        err.issues.forEach((e) => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
         setErrors(newErrors);
       }
       return false;
@@ -121,32 +103,42 @@ export default function Onboarding() {
 
     if (step < STEPS.length - 1) {
       setStep(s => s + 1);
-    } else {
-      if (!waiverAccepted) {
-        toast.error('Please accept the waiver to continue');
-        return;
-      }
-      try {
+      return;
+    }
+
+    if (form.preferredDays.length === 0 || !form.preferredTime) {
+      toast.error('Please select your preferred days and time');
+      return;
+    }
+
+    // Persist via existing tRPC wiring. The detailed concierge answers are stored
+    // in the free-form `goals` JSON field accepted by clientProfile.saveProfile.
+    try {
+      if (isAuthenticated) {
         await setRoleMutation.mutateAsync({ role: 'client' });
         await saveProfileMutation.mutateAsync({
-          swimmerType: swimmerType === 'self' ? 'adult_self' : 'child',
-          swimmerName: form.swimmerName,
-          swimmerAge: parseInt(form.swimmerAge) || 0,
+          swimmerType: 'adult_self',
+          swimmerName: form.name,
           swimLevel: form.swimLevel.toLowerCase().replace('-', '_') as any,
-          goals: JSON.stringify({ 
-            goals: form.goals, 
-            language: form.language, 
-            schedule: form.schedule, 
-            region: form.region,
-            parentName: form.parentName,
-            phone: form.phone
+          goals: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            mobile: form.mobile,
+            postalCode: form.postalCode,
+            lessonLocation: form.lessonLocation,
+            goal: form.goal,
+            preferredDays: form.preferredDays,
+            preferredTime: form.preferredTime,
           }),
         });
-        toast.success('Profile created! Finding your matches...', { icon: '🎉' });
-        setTimeout(() => navigate('/matches'), 1200);
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to complete onboarding');
+      } else {
+        // Not logged in — preserve answers and route to account creation/login.
+        try { localStorage.setItem('swimxp_onboarding', JSON.stringify(form)); } catch {}
       }
+      toast.success("Thanks! We'll prepare your Top 3 coach recommendations.", { icon: '🎯' });
+      setTimeout(() => navigate(isAuthenticated ? '/matches' : '/register'), 1200);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to complete onboarding');
     }
   };
 
@@ -176,171 +168,141 @@ export default function Onboarding() {
       </div>
 
       <div className="px-4 py-6 animate-fade-up">
+        {/* Step 0 — Welcome */}
         {step === 0 && (
           <div className="text-center py-4">
             <img src={LOGO_IMG} alt="SwimXP" className="w-20 h-20 object-contain mx-auto mb-5" />
-            <h2 className="text-2xl font-extrabold font-display text-navy mb-3">Find Your Match</h2>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-              We'll match you with the perfect swim coach in under 2 minutes. Answer a few quick questions to get started.
+            <h2 className="text-2xl font-extrabold font-display text-navy mb-3">Your Concierge Match</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+              Answer a few quick questions and our team will personally curate the best coaches for you.
             </p>
-            <div className="space-y-3 text-left mb-8">
-              {[
-                { emoji: '🎯', text: 'Personalised coach matching' },
-                { emoji: '📍', text: 'Coaches travel to your private pool' },
-                { emoji: '📅', text: 'Book lessons that fit your schedule' },
-                { emoji: '✅', text: 'Verified and certified coaches only' },
-              ].map(item => (
-                <div key={item.text} className="flex items-center gap-3 bg-[oklch(0.97_0.005_220)] rounded-xl p-3">
-                  <span className="text-xl">{item.emoji}</span>
-                  <span className="text-sm text-foreground font-medium">{item.text}</span>
-                </div>
-              ))}
+            <div className="bg-[oklch(0.95_0.04_192)] border border-[oklch(0.76_0.14_192)]/30 rounded-2xl p-4 flex items-start gap-3 text-left">
+              <Sparkles size={20} className="text-[oklch(0.76_0.14_192)] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-navy font-medium leading-relaxed">
+                We'll personally recommend the Top 3 coaches based on your goals, location and availability.
+              </p>
             </div>
           </div>
         )}
 
+        {/* Step 1 — Your Details */}
         {step === 1 && (
           <div className="space-y-4">
-            <RequiredField label="Your Full Name" error={errors.parentName}>
-              <Input type="text" placeholder="e.g. Jennifer Lim" value={form.parentName} onChange={e => set('parentName', e.target.value)} />
+            <RequiredField label="Full Name" error={errors.name}>
+              <Input type="text" placeholder="e.g. John Tan Wei Jie" value={form.name} onChange={e => set('name', e.target.value)} />
             </RequiredField>
             <RequiredField label="Email Address" error={errors.email}>
-              <Input type="email" autocomplete="email" placeholder="e.g. jennifer@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
+              <Input type="email" autoComplete="email" placeholder="e.g. john.tan@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
             </RequiredField>
-            <RequiredField label="Phone Number (WhatsApp)" error={errors.phone}>
-              <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, ''))} />
+            <RequiredField label="Mobile Number (WhatsApp)" error={errors.mobile}>
+              <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 91234567" value={form.mobile} onChange={e => set('mobile', e.target.value.replace(/\D/g, ''))} />
+            </RequiredField>
+            <RequiredField label="Postal Code" error={errors.postalCode}>
+              <Input type="tel" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="e.g. 238801" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} />
             </RequiredField>
           </div>
         )}
 
+        {/* Step 2 — Lesson Location */}
         {step === 2 && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant={swimmerType === 'self' ? 'default' : 'outline'} onClick={() => { setSwimmerType('self'); set('swimmerName', form.parentName); }}>
-                <User className="mr-2 h-4 w-4" /> Myself
-              </Button>
-              <Button variant={swimmerType === 'child' ? 'default' : 'outline'} onClick={() => { setSwimmerType('child'); set('swimmerName', ''); }}>
-                <Users className="mr-2 h-4 w-4" /> Child / Teen
-              </Button>
-            </div>
-            {swimmerType && (
-              <div className="space-y-4">
-                <RequiredField label="Swimmer's Name" error={errors.swimmerName}>
-                  <Input type="text" placeholder="e.g. Tan Xiao Ming" value={form.swimmerName} onChange={e => set('swimmerName', e.target.value)} />
-                </RequiredField>
-                <RequiredField label="Age" error={errors.swimmerAge}>
-                  <select className="w-full p-2 rounded-md border text-sm" value={form.swimmerAge} onChange={e => set('swimmerAge', e.target.value)}>
-                    <option value="">Select Age</option>
-                    {(swimmerType === 'child' ? CHILD_AGE_GROUPS : ADULT_AGE_GROUPS).map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </RequiredField>
-                <RequiredField label="Swim Level" error={errors.swimLevel}>
-                  <div className="flex flex-wrap gap-2">
-                    {SWIM_LEVELS.map(l => (
-                      <Button key={l} variant={form.swimLevel === l ? 'default' : 'outline'} size="sm" onClick={() => set('swimLevel', l)}>{l}</Button>
-                    ))}
-                  </div>
-                </RequiredField>
-              </div>
-            )}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-navy">Where will lessons take place?</Label>
+            {LESSON_LOCATIONS.map(loc => (
+              <button
+                key={loc.id}
+                onClick={() => set('lessonLocation', loc.id)}
+                className={cn(
+                  'w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left',
+                  form.lessonLocation === loc.id ? 'border-[oklch(0.76_0.14_192)] bg-[oklch(0.95_0.04_192)]' : 'border-border bg-white'
+                )}
+              >
+                <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0', form.lessonLocation === loc.id ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.955_0.010_220)] text-muted-foreground')}>
+                  <loc.icon size={20} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-navy">{loc.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{loc.desc}</p>
+                </div>
+                {form.lessonLocation === loc.id && <CheckCircle2 size={18} className="text-[oklch(0.76_0.14_192)]" />}
+              </button>
+            ))}
+            {errors.lessonLocation && <p className="text-[10px] text-red-500 font-medium">{errors.lessonLocation}</p>}
           </div>
         )}
 
+        {/* Step 3 — Swimming Profile */}
         {step === 3 && (
           <div className="space-y-6">
-            <RequiredField label="Region" error={errors.region}>
-              <select className="w-full p-2 rounded-md border text-sm" value={form.region} onChange={e => set('region', e.target.value)}>
-                <option value="">Select Region</option>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </RequiredField>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-navy">Swim Goals (select multiple)</Label>
+              <Label className="text-sm font-semibold text-navy">Swimming Level</Label>
               <div className="flex flex-wrap gap-2">
-                {SWIM_GOALS.map(g => (
-                  <button
-                    key={g}
-                    onClick={() => toggleGoal(g)}
-                    className={cn(
-                      'text-xs px-3 py-1.5 rounded-full font-medium transition-all',
-                      form.goals.includes(g) ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground'
-                    )}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-navy">Preferred Language</Label>
-              <div className="flex flex-wrap gap-2">
-                {LANGUAGES.map(l => (
+                {SWIM_LEVELS.map(l => (
                   <button
                     key={l}
-                    onClick={() => set('language', l)}
-                    className={cn(
-                      'text-xs px-3 py-1.5 rounded-full font-medium transition-all',
-                      form.language === l ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground'
-                    )}
+                    onClick={() => set('swimLevel', l)}
+                    className={cn('text-xs px-3 py-2 rounded-full font-medium transition-all', form.swimLevel === l ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground')}
                   >
                     {l}
                   </button>
                 ))}
               </div>
+              {errors.swimLevel && <p className="text-[10px] text-red-500 font-medium">{errors.swimLevel}</p>}
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-navy">Preferred Schedule</Label>
-              <div className="space-y-2">
-                {SCHEDULE_PREFS.map(s => (
+              <Label className="text-sm font-semibold text-navy">Primary Goal</Label>
+              <div className="flex flex-wrap gap-2">
+                {SWIM_GOALS.map(g => (
                   <button
-                    key={s}
-                    onClick={() => toggleSchedule(s)}
-                    className={cn(
-                      'w-full text-left px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-between',
-                      form.schedule.includes(s) ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-foreground'
-                    )}
+                    key={g}
+                    onClick={() => set('goal', g)}
+                    className={cn('text-xs px-3 py-2 rounded-full font-medium transition-all', form.goal === g ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground')}
                   >
-                    {s}
-                    {form.schedule.includes(s) && <CheckCircle2 size={16} />}
+                    {g}
                   </button>
                 ))}
               </div>
+              {errors.goal && <p className="text-[10px] text-red-500 font-medium">{errors.goal}</p>}
             </div>
           </div>
         )}
 
+        {/* Step 4 — Availability */}
         {step === 4 && (
-          <div className="space-y-4">
-            <div className="bg-[oklch(0.97_0.005_220)] rounded-2xl p-4 max-h-72 overflow-y-auto border border-border/50">
-              <h3 className="font-bold text-sm font-display text-navy mb-3">SwimXP Connect — Liability Waiver & Terms</h3>
-              <div className="text-xs text-muted-foreground space-y-3 leading-relaxed">
-                <p>By registering on SwimXP Connect, you acknowledge and agree to the following:</p>
-                <p><strong>1. Risk Acknowledgement:</strong> Swimming involves inherent risks including but not limited to drowning, injury, and illness. You voluntarily assume all such risks for the swimmer.</p>
-                <p><strong>2. Marketplace Platform:</strong> SwimXP Connect is a marketplace platform. Coaches are independent contractors, not direct employees of SwimXP.</p>
-                <p><strong>3. Private Location:</strong> Lessons take place at your provided private residence (Condo/Landed). You are responsible for ensuring the pool is safe and accessible for the lesson.</p>
-                <p><strong>4. Supervision:</strong> A parent or guardian must be present on-site at the private residence during lessons for children under 16.</p>
-                <p><strong>5. Cancellation:</strong> Lessons cancelled less than 24 hours in advance may be subject to a full session fee at the coach's discretion.</p>
-                <p><strong>6. Data Privacy:</strong> Your data is protected under Singapore's PDPA and used only for matching and booking purposes.</p>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-navy">Preferred Days (select multiple)</Label>
+              <div className="flex flex-wrap gap-2">
+                {PREFERRED_DAYS.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => toggleDay(d)}
+                    className={cn('w-12 h-12 rounded-xl font-semibold text-sm transition-all', form.preferredDays.includes(d) ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground')}
+                  >
+                    {d}
+                  </button>
+                ))}
               </div>
             </div>
-            <button
-              onClick={() => setWaiverAccepted(!waiverAccepted)}
-              className={cn(
-                'w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left',
-                waiverAccepted ? 'border-[oklch(0.76_0.14_192)] bg-[oklch(0.95_0.04_192)]' : 'border-border bg-white'
-              )}
-            >
-              <div className={cn(
-                'w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all',
-                waiverAccepted ? 'bg-[oklch(0.76_0.14_192)] border-[oklch(0.76_0.14_192)] text-white' : 'border-border'
-              )}>
-                {waiverAccepted && <CheckCircle2 size={14} />}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-navy">Preferred Time</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PREFERRED_TIMES.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => set('preferredTime', t)}
+                    className={cn('py-3 rounded-xl font-semibold text-sm transition-all', form.preferredTime === t ? 'bg-[oklch(0.76_0.14_192)] text-white' : 'bg-[oklch(0.97_0.005_220)] text-muted-foreground')}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
-              <div>
-                <p className="text-sm font-bold text-navy leading-none">I accept the terms & waiver</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Required to find your coach match</p>
-              </div>
-            </button>
+            </div>
+            <div className="bg-[oklch(0.95_0.04_192)] border border-[oklch(0.76_0.14_192)]/30 rounded-2xl p-4 flex items-start gap-3">
+              <Sparkles size={20} className="text-[oklch(0.76_0.14_192)] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-navy font-medium leading-relaxed">
+                We'll personally recommend the Top 3 coaches based on your goals, location and availability.
+              </p>
+            </div>
           </div>
         )}
 
@@ -350,7 +312,7 @@ export default function Onboarding() {
             onClick={handleNext}
             disabled={setRoleMutation.isPending || saveProfileMutation.isPending}
           >
-            {step === STEPS.length - 1 ? 'Get My Matches' : 'Continue'}
+            {step === STEPS.length - 1 ? 'Get My Top 3 Coaches' : 'Continue'}
           </Button>
         </div>
       </div>

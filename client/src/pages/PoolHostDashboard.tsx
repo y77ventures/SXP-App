@@ -62,7 +62,7 @@ export default function PoolHostDashboard() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
-        err.errors.forEach(e => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
+        err.issues.forEach((e: any) => { if (e.path[0]) newErrors[e.path[0] as string] = e.message; });
         setErrors(newErrors);
       }
       return false;
@@ -168,7 +168,7 @@ export default function PoolHostDashboard() {
               </FormField>
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="Postal Code *" error={errors.postalCode}>
-                  <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 543210" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} maxLength={6} />
+                  <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 543210" value={form.postalCode} onChange={e => set('postalCode', e.target.value.replace(/\D/g, ''))} maxLength={6} />
                 </FormField>
                 <FormField label="Unit Number">
                   <Input type="text" placeholder="e.g. #12-34" value={form.unitNumber} onChange={e => set('unitNumber', e.target.value)} />
@@ -176,7 +176,7 @@ export default function PoolHostDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="Pool Length (m)">
-                  <Input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 25" value={form.poolLength} onChange={e => set('poolLength', e.target.value.replace(/\D/g, ''))} />
+                  <Input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 25" value={form.poolLength} onChange={e => set('poolLength', e.target.value.replace(/\D/g, ''))} />
                 </FormField>
                 <FormField label="Max Depth (m)">
                   <Input type="text" placeholder="e.g. 1.5" value={form.poolDepth} onChange={e => set('poolDepth', e.target.value)} />
