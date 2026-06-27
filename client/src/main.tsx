@@ -93,3 +93,4 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+// Triggering Vercel rebuild: Sat Jun 27 11:31:44 UTC 2026
