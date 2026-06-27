@@ -4,6 +4,7 @@
 import { Link, useLocation } from 'wouter';
 import { Home, Search, Heart, CalendarDays, User, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 interface AppLayoutProps {
   children: React.ReactNode;
