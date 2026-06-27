@@ -1,0 +1,256 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   SWIMXP CONNECT — SWIM XPERIENCE DESIGN SYSTEM
+   Brand: Swim Xperience whale logo — navy circle, aqua-blue whale
+   Signature color: #3BBFCF (Whale Aqua) | Accent: #1B3A5C (Deep Navy)
+   Background: ice-blue slate #EEF3F8 — clean contrast for dark logo circle
+   Display font: Sora | Body font: Inter
+   ============================================================ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* SwimXP custom tokens */
+  --color-aqua: var(--aqua);
+  --color-aqua-light: var(--aqua-light);
+  --color-aqua-dark: var(--aqua-dark);
+  --color-navy: var(--navy);
+  --color-coral: var(--coral);
+  --color-cream: var(--cream);
+  --color-sand: var(--sand);
+}
+
+:root {
+  /* Swim Xperience brand palette — derived from whale logo */
+  --aqua: oklch(0.72 0.13 200);        /* whale-blue #3BBFCF */
+  --aqua-light: oklch(0.93 0.05 200);  /* pale aqua tint */
+  --aqua-dark: oklch(0.52 0.14 200);   /* deep whale blue */
+  --navy: oklch(0.22 0.06 240);        /* logo circle navy #1B3A5C */
+  --coral: oklch(0.68 0.19 22);        /* warm accent #FF6B6B */
+  --cream: oklch(0.965 0.012 220);     /* ice-blue slate #EEF3F8 — logo contrast bg */
+  --sand: oklch(0.955 0.010 220);      /* slightly deeper ice-blue section bg */
+
+  --radius: 0.875rem;
+  --background: oklch(0.965 0.012 220); /* ice-blue slate — strong contrast for dark logo circle */
+  --foreground: oklch(0.22 0.06 240);  /* deep navy text */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.06 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.06 240);
+
+  /* Primary = Whale Aqua */
+  --primary: oklch(0.72 0.13 200);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.955 0.010 220);
+  --secondary-foreground: oklch(0.22 0.06 240);
+  --muted: oklch(0.955 0.010 220);
+  --muted-foreground: oklch(0.52 0.03 240);
+  --accent: oklch(0.93 0.05 200);
+  --accent-foreground: oklch(0.22 0.06 240);
+  --destructive: oklch(0.68 0.19 22);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.90 0.012 220);
+  --input: oklch(0.94 0.010 220);
+  --ring: oklch(0.72 0.13 200);
+
+  --chart-1: oklch(0.72 0.13 200);
+  --chart-2: oklch(0.62 0.15 200);
+  --chart-3: oklch(0.52 0.14 200);
+  --chart-4: oklch(0.68 0.19 22);
+  --chart-5: oklch(0.22 0.06 240);
+
+  --sidebar: oklch(0.965 0.012 220);
+  --sidebar-foreground: oklch(0.22 0.06 240);
+  --sidebar-primary: oklch(0.72 0.13 200);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.05 200);
+  --sidebar-accent-foreground: oklch(0.22 0.06 240);
+  --sidebar-border: oklch(0.90 0.012 220);
+  --sidebar-ring: oklch(0.72 0.13 200);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', sans-serif;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+    transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
+  }
+
+  /* SwimXP custom utilities */
+  .font-display {
+    font-family: 'Sora', sans-serif;
+  }
+  .text-aqua {
+    color: oklch(0.72 0.13 200);
+  }
+  .bg-aqua {
+    background-color: oklch(0.72 0.13 200);
+  }
+  .bg-aqua-light {
+    background-color: oklch(0.93 0.05 200);
+  }
+  .border-aqua {
+    border-color: oklch(0.72 0.13 200);
+  }
+  .text-navy {
+    color: oklch(0.22 0.06 240);
+  }
+  .bg-navy {
+    background-color: oklch(0.22 0.06 240);
+  }
+  .bg-cream {
+    background-color: oklch(0.985 0.006 80);
+  }
+  .bg-sand {
+    background-color: oklch(0.96 0.01 80);
+  }
+  .text-coral {
+    color: oklch(0.68 0.19 22);
+  }
+  .bg-coral {
+    background-color: oklch(0.68 0.19 22);
+  }
+
+  /* Card hover lift */
+  .card-hover {
+    transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(59, 191, 207, 0.22);
+  }
+
+  /* Match badge gradient */
+  .match-badge {
+    background: linear-gradient(135deg, oklch(0.72 0.13 200), oklch(0.68 0.19 22));
+    color: white;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+  }
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Entrance animation */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up {
+    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .animate-fade-up-1 { animation-delay: 60ms; }
+  .animate-fade-up-2 { animation-delay: 120ms; }
+  .animate-fade-up-3 { animation-delay: 180ms; }
+  .animate-fade-up-4 { animation-delay: 240ms; }
+  .animate-fade-up-5 { animation-delay: 300ms; }
+
+  /* Swipe card */
+  @keyframes swipeLeft {
+    to { transform: translateX(-150%) rotate(-20deg); opacity: 0; }
+  }
+  @keyframes swipeRight {
+    to { transform: translateX(150%) rotate(20deg); opacity: 0; }
+  }
+  .swipe-left { animation: swipeLeft 350ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+  .swipe-right { animation: swipeRight 350ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up, .swipe-left, .swipe-right {
+      animation: none;
+    }
+  }
+}

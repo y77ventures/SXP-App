@@ -1,0 +1,52 @@
+{
+  "name": "SwimXP | Private Swim Lessons at Your Condo Pool",
+  "short_name": "SwimXP",
+  "description": "Find and book certified private swim coaches at your Singapore condominium or private estate pool. Easy scheduling, verified coaches, and secure payments.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EEF3F8",
+  "theme_color": "#1B3A5C",
+  "lang": "en-SG",
+  "categories": ["sports", "education", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Find a Coach",
+      "short_name": "Coaches",
+      "description": "Browse and match with certified swim coaches near you",
+      "url": "/explore",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Schedule",
+      "short_name": "Schedule",
+      "description": "View your upcoming swim lessons",
+      "url": "/schedule",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pool Registry",
+      "short_name": "Pools",
+      "description": "Find pools near your condo or estate",
+      "url": "/pools",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
